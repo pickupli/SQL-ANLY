@@ -70,6 +70,7 @@ def rereat_info_from_ast(ast_root,alias_tbl_dict):
                             src_dict[b_c_name]=set()
                         b_t_c_set = src_dict[b_c_name]
                         b_t_c_set.add(w_b_col.name)
+            '''
             # group 子句
             for g_clause in scope.find_all(exp.Group):
                 for o_b_col in g_clause.find_all(exp.Column):
@@ -78,7 +79,6 @@ def rereat_info_from_ast(ast_root,alias_tbl_dict):
                         src_dict[b_c_name]=set()
                     b_t_c_set = src_dict[b_c_name]
                     b_t_c_set.add(o_b_col.name)
-            '''
             # ordr 子句
             for o_clause in scope.find_all(exp.Order):
                 for o_b_col in o_clause.find_all(exp.Column):
