@@ -1,0 +1,30 @@
+//安装cnpm
+npm install -g cnpm -registry=https://registry.npm.taobao.org
+cnpm i vue vue-router vue-cookies element-ui element-theme-chalk -S
+cnpm i jquery --save
+cnpm i webpack webpack-cli   -D
+cnpm i sass-loader sass  css-loader style-loader  scss-loader -D
+cnpm i vue-loader vue-template-compiler  vue-html-loader  vue-hot-reload-api -D
+cnpm i compression-webpack-plugin -D
+
+cnpm i babel-loader @babel/core @babel/preset-env babel-preset-es2015 babel-runtime babel-plugin-transform-runtime babel-core@7.0.0-bridge.0 -D
+cnpm i babel-plugin-syntax-dynamic-import -D
+cnpm i file-loader url-loader expose-loader  -D
+cnpm i html-webpack-plugin add-asset-html-cdn-webpack-plugin --save
+cnpm i jquery boostrap @popperjs/core -D
+cnpm install vue-quill-editor -S
+cnpm install quill-image-resize-module quill-image-drop-module --save
+
+
+
+//环境
+
+
+cnpm install @babel/core @babel/preset-env @babel/plugin-transform-runtime -D
+cnpm install @babel/plugin-proposal-class-properties babel-loader -D
+@babel/preset-react
+cnpm i vue-loader vue-template-compiler  vue-html-loader  vue-hot-reload-api -D
+npm i file-loader url-loader expose-loader  -D
+npm i html-webpack-plugin add-asset-html-cdn-webpack-plugin --D
+
+

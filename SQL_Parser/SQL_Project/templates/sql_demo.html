@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <!-- import CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+  <!-- import Vue before Element -->
+  <script src="https://unpkg.com/vue@2/dist/vue.js"></script>
+  <!-- import JavaScript -->
+  <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+  <script src="https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
+
+</head>
+<body style='width:98%;'>
+  <div id="sql-app" style="width:98%;padding:5px,50px;">
+    <el-container>
+        <el-main>
+            <el-divider content-position='left' >Sql Text</el-divider>
+            <el-input
+                type="textarea"
+                :rows="4"
+                placeholder="Input the Sql Text"
+                v-model="src_sql">
+            </el-input>
+            <el-button @click="send_sql_txt" style="width:200px;margin-top:10px;" type="primary" round>Analyze</el-button>
+            <el-divider  content-position='left'>RELATIVE TABLES</el-divider>            
+            <table >
+              <tr>
+                <td>
+                  <el-tag :hit='true' v-for="tag in TBL_LIST" :key="tag" style='margin-right:10px;' v-html="tag"></el-tag>           
+                </td>
+              </tr>
+            </table>
+            <el-divider  content-position='left'>RELATIVE COLUMNS</el-divider>            
+            <el-table :data='SRC_TBL' border stripe>
+              <el-table-column label="table name" prop='' align="left" width="200px">
+                <template slot-scope="scope">
+                  <el-tag effect="dark" :hit='true' v-html='scope.row.TBL_NAME'></el-tag>
+                </template>
+              </el-table-column>  
+              <el-table-column label="columns"  align="left">
+                <template slot-scope="scope">
+                  <el-tag  type="info" :hit='true' v-for="col in scope.row.COLS" :key="col" style='margin-right:10px;' v-html="col"></el-tag>
+                </template>
+              </el-table-column>
+            </el-table>
+            <el-divider  content-position='left'>OUTPUT COLUMNS</el-divider>            
+            <el-table :data='OUT_TBL' border stripe>
+              <el-table-column label="table name" prop='' align="left" width="200px">
+                <template slot-scope="scope">
+                  <el-tag effect="dark" :hit='true' v-html='scope.row.TBL_NAME'></el-tag>
+                </template>
+              </el-table-column>  
+              <el-table-column label="columns"  align="left">
+                <template slot-scope="scope">
+                  <el-tag  type="info" :hit='true' v-for="col in scope.row.COLS" :key="col" style='margin-right:10px;' v-html="col"></el-tag>
+                </template>
+              </el-table-column>
+            </el-table>
+            <el-divider  content-position='left'>ERROR  MESSAGE</el-divider>            
+            <el-alert :title="err_msg" type="error"></el-alert>
+          </el-main>
+    </el-container>
+  </div>
+</body>
+  <script>
+    Vue.prototype.send_post_json_ajax=function(url, data_json, callback, error_callback){
+        let that =this
+        let sending_data =JSON.stringify(data_json)
+        $.ajax({
+            url:url,
+            method:'POST',
+            data:sending_data,
+            contentType:'application/json',
+            processData: false,
+            dataType:"json",
+            beforeSend:function(){
+                //console.log('csrftoken:',that.$cookies.get('csrftoken'))
+            },
+            success:function(data) {
+                if(data.AJAX_RESULT==true){
+                    callback(data)
+                }else{
+                    if(typeof error_callback === "function"){
+                        error_callback(data)
+                        return
+                    }
+                    alert(data.ERR_MSG)
+                }
+            },
+            error:function(data){
+                if(typeof error_callback === "function"){
+                    error_callback(data)
+                    return
+                }
+                alert(data.ERR_MSG)
+            }
+        })
+    }
+
+    new Vue({
+      el: '#sql-app',
+      data: function() {
+        return {
+                src_sql: "",
+                err_msg:"",
+                TBL_LIST:[],
+                SRC_TBL:[],
+                OUT_TBL:[],
+              }
+      },
+      methods:{
+        send_sql_txt:function(){ //确认是否登录 用户信息确认以后的操作
+
+            this.err_msg = ""
+            this.TBL_LIST = []
+            this.SRC_TBL = []
+            this.OUT_TBL = []
+
+            that = this
+            let target_url ="/get_sql_info_ajax/?r="+Math.random()
+            var json_obj=new Object()
+            json_obj.sql_content = this.src_sql
+            let callback=function(data){
+              result_map = data.RESULT
+              that.TBL_LIST = result_map.TBL
+              that.SRC_TBL = result_map.SRC
+              that.OUT_TBL = result_map.OUT
+            }
+            let errcallback=function(data){that.err_msg = data.ERR_MSG}
+            this.send_post_json_ajax(target_url,json_obj,callback,errcallback)
+        },
+      }
+    })
+  </script>
+</html>

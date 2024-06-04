@@ -1,0 +1,6 @@
+django
+PILLOW
+django-guardian
+mysqlclient
+oci
+elasticsearch

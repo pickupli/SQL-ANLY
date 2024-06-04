@@ -1,0 +1,1 @@
+ uwsgi /home/Sql_Parser/conf/sql-parser-uwsgi.ini
