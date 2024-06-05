@@ -15,6 +15,12 @@
             ],
             "django": true,
             "justMyCode": true
-        }
+        },
+        {
+            "name": "Python: UNITTEST",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+        },
     ]
 }
