@@ -30,7 +30,9 @@ def find_actual_colname_from_col_for_criteria(src_col,tbl_alias_dict):
 def trace_actual_col_name_for_source(src_node,tbl_aliat_dict):
     col_list = []
     for buf_a in src_node.find_all(exp.Alias):
+        buf_colunms_count = 0 
         for buf_c in buf_a.find_all(exp.Column):
+            buf_colunms_count=buf_colunms_count +1
             if tbl_aliat_dict.get(buf_c.table) is not None:
                 buf_tbl_info = tbl_aliat_dict[buf_c.table]
                 if buf_tbl_info.Source_Type == SOURCE_TYPE.RAW_TABLE:
@@ -48,6 +50,10 @@ def trace_actual_col_name_for_source(src_node,tbl_aliat_dict):
             else: 
                 # 如果别名 对应的表为空 
                 pass;
+        if buf_colunms_count==0:
+            # 如果别名 节点下无任何显式的字段名 则表名是个函数计算量 而且和具体字段无关 则不指定该输出字段的 表名
+            col_list.append(("",buf_a.alias_or_name ,buf_a.alias_or_name))
+                   
     return  col_list 
 
 
@@ -144,8 +150,9 @@ demo_sql2 = "SELECT t.abb,(t.erf+t2.fff) AS fstC,t2.ggg   FROM (select tbl0.abc 
 demo_sql3 = 'SELECT tbl0.a,tbl0.b,tbl0.c,tbl0.d,bt1.aa  FROM tbl0,(select aa,bb from tbl1 where cc=1) bt1   WHERE g=2 and c=(select  a1 from tbl1 where b2=3)   group by fff  HAVING AVG(zzz)>900 order by rrr'
 demo_sql4 = 'SELECT tbl0.a,bt1.aa,bt1.bb,tbl2.aaa  FROM tbl0 ,(select aa,bb from tbl1 where cc=1) bt1,tbl2 WHERE tbl0.d=bt1.bb and  bt1.bb=tbl2.ccc and  tbl0.g=2 and tbl0.c=(select  a1 from tbl1 where b2=3)  group by tbl0.fff  HAVING AVG(tbl0.zzz)>900 order by tbl0.rrr'
 demo_sql5 = 'SELECT a,b,c  FROM tbl0  where d=1 and e=2 and f=(select aa from tbl1 where bb=3)  group by tbl0.f  HAVING AVG(tbl0.g)>900 order by tbl0.h'
+demo_sql6 = 'SELECT a,b,count(*) as COUNT  FROM tbl0  where d=1 and e=2 and f=(select aa from tbl1 where bb=3)  group by tbl0.f  HAVING AVG(tbl0.g)>900 order by COUNt'
 
-info = rereat_info_from_sql(demo_sql2)
-#print('TBLS:',info.ref_tbl_set)
-#print('OUT:',info.out_col_dict)
-#print('CRITERIA:',info.criteria_col_dict)
+info = rereat_info_from_sql(demo_sql6)
+print('TBLS:',info.ref_tbl_set)
+print('OUT:',info.out_col_dict)
+print('CRITERIA:',info.criteria_col_dict)
