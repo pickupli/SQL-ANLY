@@ -20,7 +20,8 @@
             "name": "Python: UNITTEST",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "env": {"PYTHONPATH":"${workspaceRoot}"},
+            "program": "${file}"
         },
     ]
 }

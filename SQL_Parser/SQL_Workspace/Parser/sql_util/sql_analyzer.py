@@ -1,5 +1,4 @@
-import imp
-from tkinter.messagebox import NO
+from lib2to3.pgen2.token import EQUAL
 from sqlglot.optimizer.scope import build_scope,traverse_scope
 from sqlglot.optimizer import Scope
 from sqlglot import parse_one, exp
@@ -29,6 +28,18 @@ def find_actual_colname_from_col_for_criteria(src_col,tbl_alias_dict):
 # 读出输出字段的真实字段名，别名 和真实表名        
 def trace_actual_col_name_for_source(src_node,tbl_aliat_dict):
     col_list = []
+    if src_node.is_star :
+        if hasattr(src_node,'table') :
+            col_list.append((src_node.table,"*","*"))
+        else:
+            father_scope =  build_scope(src_node.parent_select)
+            if len(father_scope.sources)>1 :
+                raise Exception('通配* 不能确认来源!')
+            else:
+                for buf_t in father_scope.sources:
+                    if isinstance(father_scope.sources[buf_t] ,exp.Table): 
+                        col_list.append((buf_t,"*","*"))
+        return col_list
     for buf_a in src_node.find_all(exp.Alias):
         buf_colunms_count = 0 
         for buf_c in buf_a.find_all(exp.Column):
@@ -42,9 +53,9 @@ def trace_actual_col_name_for_source(src_node,tbl_aliat_dict):
                     sub_query_info = buf_tbl_info.Sub_Outs
                     for buf_t in sub_query_info.keys():
                         for name_pair in sub_query_info[buf_t]:
-                            if name_pair[1] == buf_c.this.alias_or_name:
+                            if name_pair[1] == buf_c.this.alias_or_name or name_pair[1]=="*":
                                 # 因为从 Alias 开始的。需要把别名放在第三个字段
-                                col_list.append((buf_t,name_pair[0] ,buf_a.alias_or_name))
+                                col_list.append((buf_t,buf_c.name ,buf_c.alias_or_name))
                 else:
                     raise Exception('未知的来源类型')
             else: 
@@ -71,7 +82,8 @@ def rereat_info_from_ast(ast_root,gap=""):
             result_dict.tbl_alias_dict[b_t_info.alias_or_name] = SOURCE_INFO(SOURCE_TYPE.RAW_TABLE,b_t_info.name,None)
         # 如果FROM 项目 子查询
         elif isinstance(ast_root.sources[b_tbl] ,Scope):
-            sub_map = rereat_info_from_ast(ast_root.sources[b_tbl],this_gap)
+            sub_scope = ast_root.sources[b_tbl]
+            sub_map = rereat_info_from_ast(sub_scope,this_gap)
             result_dict.criteria_col_dict = merge_tbl_col_dict(result_dict.criteria_col_dict,sub_map.criteria_col_dict)
             # FROM 子查询的输出 可能是 上一级的输出 也可能是条件字段 所以 子查询的输出不能算上一级查询的输出 。放在tbl_alias_dict
             # 里面 放回给上级查询 
@@ -80,7 +92,15 @@ def rereat_info_from_ast(ast_root,gap=""):
             result_dict.tbl_alias_dict[b_tbl] =SOURCE_INFO(SOURCE_TYPE.SUB_QUERY,None,sub_map.out_col_dict)
         else:
             raise Exception('不能处理的RESOURCE 类型',b_tbl)
-            
+    # UNION 类型 直接递归到下一层 
+    if type(ast_root.expression) == exp.Union:
+        for buf_s in ast_root.union_scopes:
+            sub_map = rereat_info_from_ast(buf_s,this_gap)
+            result_dict.criteria_col_dict = merge_tbl_col_dict(result_dict.criteria_col_dict,sub_map.criteria_col_dict)
+            result_dict.out_col_dict = merge_tbl_col_dict(result_dict.out_col_dict,sub_map.out_col_dict)
+            result_dict.ref_tbl_set = result_dict.ref_tbl_set.union(sub_map.ref_tbl_set)
+            # result_dict.tbl_alias_dict[b_tbl] =SOURCE_INFO(SOURCE_TYPE.SUB_QUERY,None,sub_map.out_col_dict)
+        return result_dict
     # 查询输出的目标列
     for b_col in ast_root.expression: 
         b_col_infos = trace_actual_col_name_for_source(b_col,result_dict.tbl_alias_dict)
@@ -128,7 +148,7 @@ def rereat_info_from_sql(sql_txt):
     sql_tree = parse_one(sql_txt)
     sql_tree = qualify(sql_tree)
     #scopes = traverse_scope(sql_tree)
-    #print(scopes[0])
+    #print(sql_tree)
     root = build_scope(sql_tree)
     final_map = rereat_info_from_ast(root,"*")
     final_map.out_col_dict = remove_alias_from_out_col_dict(final_map.out_col_dict)
@@ -136,23 +156,27 @@ def rereat_info_from_sql(sql_txt):
     #final_map.criteria_col_dict = convert_set_to_list(final_map.criteria_col_dict)
     return final_map
 
-def gen_root_from_sql(sql_txt):
+def transe_root_from_sql(sql_txt):
     sql_tree = parse_one(sql_txt)
+    repr(sql_tree)
+
     sql_tree = qualify(sql_tree)
+
     root = build_scope(sql_tree)
-    return root
+    #print(sql_tree.to_s())
+    sql_tree.__repr__()
+    for buf_type in sql_tree.arg_types:
+        print("%s -> [%s]" % (buf_type,sql_tree.arg_types[buf_type]))
+        pass
+    for buf_arg in sql_tree.args:
+        print("%s >> [%s]" % (buf_arg,sql_tree.args[buf_arg]))
+        pass
+
+    return sql_tree
 
 
-demo_sql1 = 'SELECT SUM(x.aaa) as sumA ,x.bbb AS fstC ,(tbl1.ccc+tbl2.ttt)*tbl3.www, tbl2.ddd ,tbl3.ggg FROM tbl0 x  JOIN tbl1  JOIN tbl2 JOIN tbl3  WHERE x.caa=2 and x.cbb=tbl1.ccc and tbl1.cee=(select sum(abc) from tbl3 where eee=199) and x.cff = (select a4 from tbl4 where id4=123 )   group by x.fff HAVING AVG(tbl1.zzz)>900 order by x.rrr'
-demo_sql2 = "SELECT t.abb,(t.erf+t2.fff) AS fstC,t2.ggg   FROM (select tbl0.abc as abb  ,tbl1.etf as erf,(tbl1.cc+tbl0.uuu) as ccc from tbl0,tbl1 where tbl0.aaa=102) t,tbl2 t2,tbl3 where t2.ddd=4 and t.ccc=t2.ddd and t2.eee>100 and t2.aa2>(select sum(sss) from tbl4 where id>1000) "
-#demo_sql2 = "select tbl0.abc as abb,tbl1.etf as erf,(tbl1.cc+tbl0.uuu) as ccc from tbl0,tbl1 where tbl0.aaa=102 and ccc>1000"
 
-demo_sql3 = 'SELECT tbl0.a,tbl0.b,tbl0.c,tbl0.d,bt1.aa  FROM tbl0,(select aa,bb from tbl1 where cc=1) bt1   WHERE g=2 and c=(select  a1 from tbl1 where b2=3)   group by fff  HAVING AVG(zzz)>900 order by rrr'
-demo_sql4 = 'SELECT tbl0.a,bt1.aa,bt1.bb,tbl2.aaa  FROM tbl0 ,(select aa,bb from tbl1 where cc=1) bt1,tbl2 WHERE tbl0.d=bt1.bb and  bt1.bb=tbl2.ccc and  tbl0.g=2 and tbl0.c=(select  a1 from tbl1 where b2=3)  group by tbl0.fff  HAVING AVG(tbl0.zzz)>900 order by tbl0.rrr'
-demo_sql5 = 'SELECT a,b,c  FROM tbl0  where d=1 and e=2 and f=(select aa from tbl1 where bb=3)  group by tbl0.f  HAVING AVG(tbl0.g)>900 order by tbl0.h'
-demo_sql6 = 'SELECT a,b,count(*) as COUNT  FROM tbl0  where d=1 and e=2 and f=(select aa from tbl1 where bb=3)  group by tbl0.f  HAVING AVG(tbl0.g)>900 order by COUNt'
-
-info = rereat_info_from_sql(demo_sql6)
-print('TBLS:',info.ref_tbl_set)
-print('OUT:',info.out_col_dict)
-print('CRITERIA:',info.criteria_col_dict)
+#info = rereat_info_from_sql(demo_sql7)
+#print('TBLS:',info.ref_tbl_set)
+#print('OUT:',info.out_col_dict)
+#print('CRITERIA:',info.criteria_col_dict)
